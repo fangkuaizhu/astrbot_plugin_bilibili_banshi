@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>搬石 · 群组设置</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5; color: #333; padding: 24px; max-width: 680px; margin: 0 auto;
+    }
+    h1 { font-size: 20px; margin-bottom: 20px; }
+    #status { font-size: 13px; color: #999; margin-bottom: 16px; padding: 8px 12px; background: #fff; border-radius: 6px; }
+    #status.error { color: #e74c3c; background: #fff5f5; }
+    .card { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .card label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; }
+    select, input[type="number"], input[type="text"] { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff; }
+    select:focus, input:focus { outline: none; border-color: #4a9eff; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+    .toggle-switch { position: relative; width: 46px; height: 26px; cursor: pointer; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: #ccc; border-radius: 13px; transition: 0.2s; }
+    .toggle-slider::after { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
+    .toggle-switch input:checked + .toggle-slider { background: #4CAF50; }
+    .toggle-switch input:checked + .toggle-slider::after { transform: translateX(20px); }
+    .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+    .stat-row:last-child { border-bottom: none; }
+    .keywords-area { width: 100%; min-height: 80px; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; font-family: inherit; resize: vertical; }
+    .keywords-area:focus { outline: none; border-color: #4a9eff; }
+    .hint { font-size: 12px; color: #999; margin-top: 4px; }
+    .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+    .btn { flex: 1; padding: 10px 16px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 500; }
+    .btn-primary { background: #4a9eff; color: #fff; }
+    .btn-primary:hover { background: #3a8eef; }
+    .btn-danger { background: #fff; color: #e74c3c; border: 1px solid #e74c3c; }
+    .btn-danger:hover { background: #ffecec; }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; opacity: 0; transition: 0.3s; pointer-events: none; z-index: 1000; }
+    .toast.show { opacity: 1; }
+    .empty-msg { text-align: center; padding: 40px 20px; color: #999; font-size: 14px; line-height: 1.8; }
+    .time-tag { display: inline-block; padding: 4px 10px; background: #e8f4ff; color: #4a9eff; border-radius: 12px; font-size: 13px; margin: 2px 4px 2px 0; }
+    .time-tag .del { cursor: pointer; margin-left: 4px; color: #999; }
+    .time-tag .del:hover { color: #e74c3c; }
+    #timeInputRow { display: flex; gap: 8px; margin-top: 8px; }
+    #timeInputRow input { flex: 1; }
+    #timeInputRow button { flex: 0 0 auto; }
+  </style>
+</head>
+<body>
+  <h1>搬石 · 群组设置</h1>
+  <div id="status">加载中...</div>
+
+  <div class="card">
+    <label>选择群聊</label>
+    <select id="groupSelect" onchange="window.onGroupChange()">
+      <option value="">— 请选择群 —</option>
+    </select>
+  </div>
+
+  <div id="noGroups" class="empty-msg" style="display:none">还没有已绑定的群。让机器人在任意群发一条消息即可自动绑定。</div>
+
+  <div id="configPanel" style="display:none">
+
+    <!-- 开关 -->
+    <div class="card">
+      <div class="toggle-row">
+        <span style="font-size:14px">搬石开关</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="enabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 已发送统计 -->
+    <div class="card">
+      <div class="stat-row"><span>已发送视频</span><span id="sentCount">0</span></div>
+    </div>
+
+    <!-- 推送模式 -->
+    <div class="card" style="border-left: 3px solid #4a9eff;">
+      <label>推送模式</label>
+      <select id="scanMode" onchange="window.onModeChange()">
+        <option value="interval">⏱ 间隔推送</option>
+        <option value="scheduled">🕐 定时推送</option>
+      </select>
+
+      <div id="intervalSettings" style="margin-top:12px;">
+        <label>推送间隔（秒）</label>
+        <input type="number" id="scanInterval" min="30" max="86400" value="300">
+      </div>
+
+      <div id="scheduledSettings" style="margin-top:12px;display:none;">
+        <label>定时推送时间点</label>
+        <div id="pushTimes"></div>
+        <div id="timeInputRow">
+          <input type="text" id="newTime" placeholder="HH:MM，如 08:00" maxlength="5">
+          <button class="btn btn-primary" style="flex:0 0 auto;padding:8px 14px;" onclick="window.addTime()">添加</button>
+        </div>
+        <div class="hint">设置后自动切换为定时推送模式</div>
+      </div>
+    </div>
+
+    <!-- 关键词 -->
+    <div class="card">
+      <label>搜索关键词（每行一个）</label>
+      <textarea class="keywords-area" id="keywords" placeholder="输入关键词，每行一个"></textarea>
+      <div class="hint">每行一个关键词</div>
+    </div>
+
+    <!-- 视频设置 -->
+    <div class="card">
+      <label>视频时长上限（0=不限）</label>
+      <input type="number" id="maxDuration" min="0" max="86400">
+    </div>
+
+    <div class="card">
+      <label>搜索页数</label>
+      <input type="number" id="maxPages" min="1" max="20">
+    </div>
+
+    <!-- 按钮 -->
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="window.saveConfig()">保存</button>
+      <button class="btn btn-danger" onclick="window.resetConfig()">恢复默认</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    const $ = id => document.getElementById(id);
+    const status = $('status');
+    const sel = $('groupSelect');
+    const panel = $('configPanel');
+    const noGroups = $('noGroups');
+
+    function setStatus(msg, err) { status.textContent = msg; status.className = err ? 'error' : ''; }
+    function toast(msg, err) {
+      const t = $('toast');
+      t.textContent = msg; t.style.background = err ? '#e74c3c' : '#333';
+      t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    let groupData = [];
+    let bridge;
+
+    // 显示/隐藏模式对应的设置区
+    window.onModeChange = function() {
+      const mode = $('scanMode').value;
+      $('intervalSettings').style.display = mode === 'interval' ? 'block' : 'none';
+      $('scheduledSettings').style.display = mode === 'scheduled' ? 'block' : 'none';
+    };
+
+    // 渲染定时点标签
+    function renderPushTimes(times) {
+      const container = $('pushTimes');
+      if (!times || times.length === 0) {
+        container.innerHTML = '<div class="hint" style="margin-bottom:8px;">暂无定时点，请在下方添加</div>';
+        return;
+      }
+      container.innerHTML = times.map(t =>
+        `<span class="time-tag">${t} <span class="del" onclick="window.removeTime('${t}')">✕</span></span>`
+      ).join('');
+    }
+
+    // 当前编辑的群配置缓存（用于添加/删除定时点时原地修改）
+    let currentGC = null;
+
+    window.onGroupChange = function() {
+      const gid = sel.value;
+      if (!gid) { panel.style.display = 'none'; return; }
+      const g = groupData.find(x => x.group_id === gid);
+      if (!g) return;
+      currentGC = g;
+
+      $('enabled').checked = g.enabled;
+      $('keywords').value = (g.keywords || []).join('\n');
+      $('maxDuration').value = g.max_duration;
+      $('maxPages').value = g.max_pages;
+      $('sentCount').textContent = g.sent_count;
+
+      // 模式
+      $('scanMode').value = g.scan_mode || 'interval';
+      $('scanInterval').value = g.scan_interval || 300;
+      renderPushTimes(g.push_times || []);
+      window.onModeChange();
+
+      panel.style.display = 'block';
+    };
+
+    window.saveConfig = async function() {
+      const gid = sel.value;
+      if (!gid || !bridge) return;
+      const keywords = $('keywords').value.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+      const body = {
+        enabled: $('enabled').checked,
+        keywords,
+        max_duration: parseInt($('maxDuration').value) || 0,
+        max_pages: parseInt($('maxPages').value) || 3,
+        scan_mode: $('scanMode').value,
+        scan_interval: parseInt($('scanInterval').value) || 300,
+        push_times: (currentGC && currentGC.push_times) || [],
+      };
+      try {
+        const resp = await bridge.apiPost('groups/' + encodeURIComponent(gid) + '/config', body);
+        if (resp && (resp.ok !== false)) { toast('已保存'); location.reload(); }
+        else { toast('保存失败', true); }
+      } catch(e) { toast('请求失败: ' + e.message, true); }
+    };
+
+    window.resetConfig = async function() {
+      const gid = sel.value;
+      if (!gid || !bridge || !confirm('恢复默认？')) return;
+      try {
+        const resp = await bridge.apiPost('groups/' + encodeURIComponent(gid) + '/reset', {});
+        if (resp && (resp.ok !== false)) { toast('已重置'); location.reload(); }
+        else { toast('重置失败', true); }
+      } catch(e) { toast('请求失败: ' + e.message, true); }
+    };
+
+    window.addTime = async function() {
+      const t = $('newTime').value.trim();
+      if (!t.match(/^[0-2][0-9]:[0-5][0-9]$/)) { toast('格式错误，请用 HH:MM', true); return; }
+      if (!currentGC || !bridge) return;
+
+      // 先更新 currentGC，然后推送到后端
+      if (!currentGC.push_times) currentGC.push_times = [];
+      if (currentGC.push_times.includes(t)) { toast('该时间已存在', true); return; }
+      currentGC.push_times.push(t);
+      currentGC.push_times.sort();
+      $('scanMode').value = 'scheduled';
+      renderPushTimes(currentGC.push_times);
+      window.onModeChange();
+      $('newTime').value = '';
+      toast('已添加 ' + t + '，请点击保存生效');
+    };
+
+    window.removeTime = async function(t) {
+      if (!currentGC || !bridge) return;
+      currentGC.push_times = (currentGC.push_times || []).filter(x => x !== t);
+      renderPushTimes(currentGC.push_times);
+      toast('已移除 ' + t + '，请点击保存生效');
+    };
+
+    // ===== 初始化 =====
+    try {
+      bridge = window.AstrBotPluginPage;
+      await bridge.ready();
+      setStatus('正在加载...');
+    } catch(e) {
+      setStatus('Bridge 初始化失败: ' + e.message, true);
+    }
+
+    try {
+      const resp = await bridge.apiGet('groups');
+      const list = Array.isArray(resp) ? resp : (resp && resp.data && Array.isArray(resp.data) ? resp.data : []);
+      groupData = list;
+
+      if (list.length === 0) {
+        setStatus('没有已绑定的群');
+        noGroups.style.display = 'block';
+        panel.style.display = 'none';
+      } else {
+        setStatus('已加载 ' + list.length + ' 个群');
+        list.forEach(g => {
+          const opt = document.createElement('option');
+          opt.value = g.group_id;
+          opt.textContent = '群 ' + g.group_id;
+          sel.appendChild(opt);
+        });
+        sel.value = list[0].group_id;
+        noGroups.style.display = 'none';
+        window.onGroupChange();
+      }
+    } catch(e) {
+      setStatus('加载失败: ' + e.message, true);
+    }
+  </script>
+</body>
+</html>

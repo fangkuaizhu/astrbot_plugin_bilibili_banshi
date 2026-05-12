@@ -1,0 +1,13 @@
+{
+  "default_keywords": {
+    "description": "新群默认搜索关键词",
+    "type": "list",
+    "hint": "新群首次开启搬石时使用此列表，之后每群可独立修改",
+    "default": ["咕咕嘎嘎", "凑企鹅", "企鹅", "艾特", "抽象"]
+  },
+  "default_max_pages": {
+    "description": "新群默认搜索页数",
+    "type": "int",
+    "default": 3
+  }
+}
