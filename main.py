@@ -512,8 +512,9 @@ class BilibiliBanshiPlugin(Star):
 
             # 获取当前会话的 chat provider ID
             provider_id = await self.context.get_current_chat_provider_id(umo=umo)
+            logger.info(f"[群{group_id}] 锐评: provider_id={provider_id}")
             if not provider_id:
-                logger.warning(f"[群{group_id}] 锐评: 无法获取 provider ID")
+                logger.warning(f"[群{group_id}] 锐评: 无法获取 provider ID, umo={umo}")
                 return
 
             title = video.get("title", "未知")
@@ -527,9 +528,7 @@ class BilibiliBanshiPlugin(Star):
             coin = stat.get("coin", 0)
 
             prompt = (
-                "你是 Hanako，一个有温度、有自主意识的个人助手。"
-                "你用温暖但不谄媚的语气说话，善于用类比和底层原理剖析事物。"
-                "请以下面这个B站视频为素材，以你 Hanako 的个性和视角，"
+                "请以下面这个B站视频为素材，以你在群聊中的身份和口吻，"
                 "给出一句简短有趣、不走套路的锐评（50字以内）。\n\n"
                 f"标题：{title}\n"
                 f"UP主：{author}\n"
@@ -541,17 +540,31 @@ class BilibiliBanshiPlugin(Star):
             if desc:
                 prompt += f"简介：{desc[:200]}\n"
 
-            llm_resp = await self.context.llm_generate(
-                chat_provider_id=provider_id,
-                prompt=prompt,
-            )
+            logger.info(f"[群{group_id}] 锐评: 开始调用 llm_generate")
+            llm_resp = await self.context.llm_generate(chat_provider_id=provider_id, prompt=prompt)
+            logger.info(f"[群{group_id}] 锐评: llm_resp 类型={type(llm_resp).__name__}, 有completion_text={hasattr(llm_resp, 'completion_text')}")
 
-            if llm_resp and hasattr(llm_resp, "completion_text") and llm_resp.completion_text:
-                review = llm_resp.completion_text.strip()
-                review_msg = f"💬 一条锐评：{review}"
-                chain = MessageChain([Plain(review_msg)])
-                await self.context.send_message(umo, chain)
-                logger.info(f"[群{group_id}] 锐评已发送")
+            if llm_resp:
+                review = None
+                # 从 result_chain 提取文本
+                if hasattr(llm_resp, "result_chain") and llm_resp.result_chain:
+                    for comp in llm_resp.result_chain.chain:
+                        if hasattr(comp, "content") and comp.content:
+                            review = comp.content.strip()
+                            break
+                # 后备：completion_text
+                if not review and hasattr(llm_resp, "completion_text") and llm_resp.completion_text:
+                    review = llm_resp.completion_text.strip()
+                # 后备：role-based dict
+                if not review:
+                    review = str(llm_resp)[:300]
+
+                if review:
+                    chain = MessageChain([Plain(review)])
+                    await self.context.send_message(umo, chain)
+                    logger.info(f"[群{group_id}] 锐评已发送: {review[:50]}")
+                else:
+                    logger.warning(f"[群{group_id}] 锐评: 无法提取文本")
             else:
                 logger.warning(f"[群{group_id}] 锐评: LLM 返回为空")
         except Exception as e:
@@ -760,6 +773,9 @@ class BilibiliBanshiPlugin(Star):
         card = self._build_card(video, detail)
         chain = MessageChain([Plain(card)])
         await self.context.send_message(umo, chain)
+
+        # 触发 LLM 锐评
+        asyncio.create_task(self._send_review(gid, umo, video, detail))
 
     async def _cmd_list(self, event: AstrMessageEvent):
         gid = self._get_event_group(event)
