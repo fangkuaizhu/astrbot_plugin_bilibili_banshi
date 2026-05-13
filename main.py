@@ -1,7 +1,9 @@
 """
 B站搬石插件 - 随机从B站搜索视频并分享到群
-v0.6.0：群组独立模式 - 每群独立开关/关键词/历史/推送模式
+群组独立模式 - 每群独立开关/关键词/历史/推送模式
 """
+
+PLUGIN_VERSION = "0.6.0"
 
 import asyncio
 import random
@@ -64,7 +66,7 @@ def _parse_play(text: str) -> int:
     "astrbot_plugin_bilibili_banshi",
     "Hanako",
     "B站搬石 - 群组独立版，每群独立开关/关键词/历史",
-    "0.6.0"
+    PLUGIN_VERSION
 )
 class BilibiliBanshiPlugin(Star):
     def __init__(self, context, config: AstrBotConfig = None):
@@ -721,7 +723,7 @@ class BilibiliBanshiPlugin(Star):
             f"搜索页数: {gc.get('max_pages', 3)}",
             f"关键词数: {len(keywords)} 个",
             f"已发送: {sent_count} 个视频",
-            f"版本: 0.6.0",
+            f"版本: {PLUGIN_VERSION}",
         ]
         yield event.plain_result("\n".join(lines))
 
@@ -973,7 +975,7 @@ class BilibiliBanshiPlugin(Star):
 
         return jsonify({"ok": True, "message": f"群 {group_id} 配置已更新"})
 
-    async def api_reset_group_config(self, group_id: str):
+        async def api_reset_group_config(self, group_id: str):
         """重置指定群的配置为默认值"""
         from quart import jsonify
 
@@ -984,6 +986,10 @@ class BilibiliBanshiPlugin(Star):
         gc["max_pages"] = defaults["max_pages"]
         gc["sent_bvids"] = []
         gc["enabled"] = False
+        gc["scan_mode"] = "interval"
+        gc["scan_interval"] = 300
+        gc["push_times"] = ["08:00","12:00","18:00"]
+        gc["last_scan_time"] = 0
 
         await self._save_config()
         self._refresh_timer()
@@ -1003,10 +1009,5 @@ class BilibiliBanshiPlugin(Star):
         elif not any_enabled and self.running and self.task:
             self.running = False
             self.task.cancel()
-            try:
-                import asyncio
-                fut = asyncio.ensure_future(asyncio.wait_for(self.task, timeout=3.0))
-            except:
-                pass
             self.task = None
             logger.info("搬石定时任务已停止（所有群已关闭）")

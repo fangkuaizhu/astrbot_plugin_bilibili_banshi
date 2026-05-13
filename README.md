@@ -32,7 +32,6 @@
 - 搬石开关
 - 推送模式（间隔/定时）
 - 搜索关键词
-- 视频时长上限
 - 搜索页数
 
 ### 指令配置（每群独立）
@@ -46,7 +45,6 @@
 | `/banshi kw` | 查看本群关键词列表 |
 | `/banshi kw add <词>` | 为本群添加关键词 |
 | `/banshi kw del <词>` | 从本群删除关键词 |
-| `/banshi maxdur <秒>` | 设置本群视频最大时长（0=不限） |
 | `/banshi mode interval` | 切换为间隔推送模式 |
 | `/banshi mode scheduled` | 切换为定时推送模式 |
 | `/banshi interval <秒>` | 设置本群间隔推送间隔 |
