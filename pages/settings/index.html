@@ -110,12 +110,6 @@
       <div class="hint">每行一个关键词</div>
     </div>
 
-    <!-- 视频设置 -->
-    <div class="card">
-      <label>视频时长上限（0=不限）</label>
-      <input type="number" id="maxDuration" min="0" max="86400">
-    </div>
-
     <div class="card">
       <label>搜索页数</label>
       <input type="number" id="maxPages" min="1" max="20">
@@ -178,7 +172,6 @@
 
       $('enabled').checked = g.enabled;
       $('keywords').value = (g.keywords || []).join('\n');
-      $('maxDuration').value = g.max_duration;
       $('maxPages').value = g.max_pages;
       $('sentCount').textContent = g.sent_count;
 
@@ -198,7 +191,6 @@
       const body = {
         enabled: $('enabled').checked,
         keywords,
-        max_duration: parseInt($('maxDuration').value) || 0,
         max_pages: parseInt($('maxPages').value) || 3,
         scan_mode: $('scanMode').value,
         scan_interval: parseInt($('scanInterval').value) || 300,

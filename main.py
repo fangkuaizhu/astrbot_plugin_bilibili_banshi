@@ -215,7 +215,7 @@ class BilibiliBanshiPlugin(Star):
         if has_old_style and not old_cfg.get("group_configs"):
             logger.info("检测到 v3 旧配置，正在迁移为群组独立配置...")
             old_kw = old_cfg.get("search_keywords", ["咕咕嘎嘎", "凑企鹅", "企鹅", "艾特", "抽象"])
-            old_dur = old_cfg.get("max_duration", 600)
+            old_dur = old_cfg.get("max_duration", 0)
             old_pages = old_cfg.get("max_pages", 3)
             old_auto = old_cfg.get("auto_start", False)
 
@@ -398,7 +398,7 @@ class BilibiliBanshiPlugin(Star):
         keywords = self._get_group_keywords(group_id)
         sent_set = self._get_sent_set(group_id)
         gc = self._get_group_cfg(group_id)
-        max_dur = gc.get("max_duration", 600)
+        max_dur = gc.get("max_duration", 0)
         max_pages = gc.get("max_pages", 3)
 
         max_attempts = 15
@@ -795,7 +795,7 @@ class BilibiliBanshiPlugin(Star):
         gc = self._get_group_cfg(gid)
 
         if not rest:
-            yield event.plain_result(f"本群当前最大时长：{gc.get('max_duration', 600)}秒\n用法：/banshi maxdur <秒数>")
+            yield event.plain_result(f"本群当前最大时长：{gc.get('max_duration', 0)}秒\n用法：/banshi maxdur <秒数>")
             return
         try:
             val = int(rest.split()[0])
@@ -962,7 +962,7 @@ class BilibiliBanshiPlugin(Star):
                 "group_id": gid,
                 "enabled": gc.get("enabled", False),
                 "keywords": gc.get("keywords", []),
-                "max_duration": gc.get("max_duration", 600),
+                "max_duration": gc.get("max_duration", 0),
                 "max_pages": gc.get("max_pages", 3),
                 "sent_count": len(gc.get("sent_bvids", [])),
                 "scan_mode": gc.get("scan_mode", "interval"),
