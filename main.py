@@ -591,7 +591,6 @@ class BilibiliBanshiPlugin(Star):
             "banshi now": self._cmd_now,
             "banshi list": self._cmd_list,
             "banshi kw": self._cmd_kw,
-            "banshi maxdur": self._cmd_maxdur,
             "banshi interval": self._cmd_interval,
             "banshi mode": self._cmd_mode,
             "banshi addtime": self._cmd_addtime,
@@ -779,35 +778,6 @@ class BilibiliBanshiPlugin(Star):
         else:
             yield event.plain_result(f"未知操作: {action}\n用法：/banshi kw add/del <关键词>")
 
-    async def _cmd_maxdur(self, event: AstrMessageEvent):
-        gid = self._get_event_group(event)
-        if not gid:
-            yield event.plain_result("❌ 请在群聊中使用此指令")
-            return
-
-        msg = event.message_str.strip()
-        rest = msg
-        for prefix in ["banshi maxdur", "banshi"]:
-            if rest.startswith(prefix):
-                rest = rest[len(prefix):].strip()
-                break
-
-        gc = self._get_group_cfg(gid)
-
-        if not rest:
-            yield event.plain_result(f"本群当前最大时长：{gc.get('max_duration', 0)}秒\n用法：/banshi maxdur <秒数>")
-            return
-        try:
-            val = int(rest.split()[0])
-            if val < 0:
-                yield event.plain_result("时长不能为负数（0=不限时长）")
-                return
-            gc["max_duration"] = val
-            await self._save_config()
-            label = "不限时长" if val == 0 else f"{val}秒"
-            yield event.plain_result(f"✅ 本群视频最大时长设为：{label}")
-        except ValueError:
-            yield event.plain_result("请输入有效数字")
 
     async def _cmd_interval(self, event: AstrMessageEvent):
         gid = self._get_event_group(event)
