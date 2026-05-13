@@ -53,7 +53,6 @@
 | `/banshi addtime <HH:MM>` | 增加一个定时推送时间点 |
 | `/banshi deltime <HH:MM>` | 删除一个定时推送时间点 |
 | `/banshi reset` | 清空本群已发送历史 |
-| `/banshi review <0~100>` | 设置本群 LLM 锐评触发概率（百分比） |
 
 所有指令都在 **发送指令的群** 内生效，不同群互不影响。
 

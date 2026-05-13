@@ -121,15 +121,6 @@
       <input type="number" id="maxPages" min="1" max="20">
     </div>
 
-    <div class="card" style="border-left: 3px solid #e74c3c;">
-      <label>LLM 锐评触发概率</label>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <input type="range" id="reviewProb" min="0" max="100" value="100" style="flex:1;" oninput="window.updateProbLabel()">
-        <span id="probLabel" style="font-size:14px;font-weight:500;min-width:40px;">100%</span>
-      </div>
-      <div class="hint">推送消息后，以 Hanako 的口吻再发一条锐评。0% = 关闭</div>
-    </div>
-
     <!-- 按钮 -->
     <div class="btn-group">
       <button class="btn btn-primary" onclick="window.saveConfig()">保存</button>
@@ -178,10 +169,6 @@
     // 当前编辑的群配置缓存（用于添加/删除定时点时原地修改）
     let currentGC = null;
 
-    window.updateProbLabel = function() {
-      $('probLabel').textContent = $('reviewProb').value + '%';
-    };
-
     window.onGroupChange = function() {
       const gid = sel.value;
       if (!gid) { panel.style.display = 'none'; return; }
@@ -194,8 +181,6 @@
       $('maxDuration').value = g.max_duration;
       $('maxPages').value = g.max_pages;
       $('sentCount').textContent = g.sent_count;
-      $('reviewProb').value = Math.round((g.review_probability || 1.0) * 100);
-      window.updateProbLabel();
 
       // 模式
       $('scanMode').value = g.scan_mode || 'interval';
@@ -218,7 +203,6 @@
         scan_mode: $('scanMode').value,
         scan_interval: parseInt($('scanInterval').value) || 300,
         push_times: (currentGC && currentGC.push_times) || [],
-        review_probability: parseInt($('reviewProb').value) / 100,
       };
       try {
         const resp = await bridge.apiPost('groups/' + encodeURIComponent(gid) + '/config', body);
