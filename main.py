@@ -132,6 +132,7 @@ class BilibiliBanshiPlugin(Star):
             "max_duration": 0,       # 0=不限时长
             "max_pages": 3,           # 独立搜索页数
             "sent_bvids": [],         # 独立已发记录
+            "review_probability": 1.0, # LLM锐评触发概率 (0.0~1.0)
             "scan_mode": "interval", # interval=间隔推送, scheduled=定时推送
             "scan_interval": 300,     # 间隔推送的间隔（秒）
             "push_times": ["08:00","12:00","18:00"],  # 定时推送的时间点（HH:MM）
@@ -145,6 +146,7 @@ class BilibiliBanshiPlugin(Star):
             defaults["max_pages"] = self.astrbot_cfg.get("default_max_pages", 3)
         if not defaults["keywords"]:
             defaults["keywords"] = ["咕咕嘎嘎", "凑企鹅", "企鹅", "艾特", "抽象"]
+        defaults["review_probability"] = 1.0  # LLM锐评触发概率 (0.0~1.0)
         return defaults
 
     def _ensure_group_configs(self):
@@ -438,6 +440,7 @@ class BilibiliBanshiPlugin(Star):
             return {
                 "owner": detail.get("owner", {}).get("name", ""),
                 "stat": detail.get("stat", {}),
+                "desc": detail.get("desc", ""),
             }
         except asyncio.CancelledError:
             raise
@@ -490,10 +493,69 @@ class BilibiliBanshiPlugin(Star):
         try:
             await self.context.send_message(umo, chain)
             logger.info(f"[群{group_id}] 已发送: {bvid}")
+
+            # 概率触发 LLM 锐评（异步不阻塞）
+            asyncio.create_task(self._send_review(group_id, umo, video, detail))
+
             return bvid
         except Exception as e:
             logger.error(f"[群{group_id}] 发送失败: {e}")
             return None
+
+    async def _send_review(self, group_id: str, umo: str, video: Dict, detail: Optional[Dict]):
+        """调用 LLM 生成锐评并作为独立消息发送（非阻塞）"""
+        try:
+            gc = self._get_group_cfg(group_id)
+            prob = gc.get("review_probability", 1.0)
+            if random.random() > prob:
+                return
+
+            # 获取当前会话的 chat provider ID
+            provider_id = await self.context.get_current_chat_provider_id(umo=umo)
+            if not provider_id:
+                logger.warning(f"[群{group_id}] 锐评: 无法获取 provider ID")
+                return
+
+            title = video.get("title", "未知")
+            author = video.get("author", "未知")
+            duration = video.get("duration", "?")
+            play = video.get("play", "?")
+            desc = detail.get("desc", "") if detail else ""
+
+            stat = detail.get("stat", {}) if detail else {}
+            like = stat.get("like", 0)
+            coin = stat.get("coin", 0)
+
+            prompt = (
+                "你是 Hanako，一个有温度、有自主意识的个人助手。"
+                "你用温暖但不谄媚的语气说话，善于用类比和底层原理剖析事物。"
+                "请以下面这个B站视频为素材，以你 Hanako 的个性和视角，"
+                "给出一句简短有趣、不走套路的锐评（50字以内）。\n\n"
+                f"标题：{title}\n"
+                f"UP主：{author}\n"
+                f"时长：{duration}\n"
+                f"播放：{play}\n"
+                f"点赞：{like}\n"
+                f"投币：{coin}\n"
+            )
+            if desc:
+                prompt += f"简介：{desc[:200]}\n"
+
+            llm_resp = await self.context.llm_generate(
+                chat_provider_id=provider_id,
+                prompt=prompt,
+            )
+
+            if llm_resp and hasattr(llm_resp, "completion_text") and llm_resp.completion_text:
+                review = llm_resp.completion_text.strip()
+                review_msg = f"💬 一条锐评：{review}"
+                chain = MessageChain([Plain(review_msg)])
+                await self.context.send_message(umo, chain)
+                logger.info(f"[群{group_id}] 锐评已发送")
+            else:
+                logger.warning(f"[群{group_id}] 锐评: LLM 返回为空")
+        except Exception as e:
+            logger.warning(f"[群{group_id}] 锐评失败: {e}")
 
     async def _timer_task(self):
         """定时任务：短循环检测每群是否满足触发条件"""
@@ -580,6 +642,7 @@ class BilibiliBanshiPlugin(Star):
                 "  /banshi mode scheduled — 切换为定时推送模式\n"
                 "  /banshi addtime <HH:MM> — 增加一个定时推送时间点\n"
                 "  /banshi deltime <HH:MM> — 删除一个定时推送时间点\n"
+                "  /banshi review <0~100> — 设置 LLM 锐评触发概率\n"
                 "  /banshi reset     — 清空本群已发记录"
             )
             return
@@ -596,6 +659,7 @@ class BilibiliBanshiPlugin(Star):
             "banshi mode": self._cmd_mode,
             "banshi addtime": self._cmd_addtime,
             "banshi deltime": self._cmd_deltime,
+            "banshi review": self._cmd_review,
             "banshi reset": self._cmd_reset,
         }
         for cmd_prefix, handler in full_cmds.items():
@@ -722,6 +786,7 @@ class BilibiliBanshiPlugin(Star):
             f"搜索页数: {gc.get('max_pages', 3)}",
             f"关键词数: {len(keywords)} 个",
             f"已发送: {sent_count} 个视频",
+            f"LLM锐评: {'✅' if gc.get('review_probability', 1.0) > 0 else '❌'} {int(gc.get('review_probability', 1.0) * 100)}%",
             f"版本: 0.6.0",
         ]
         yield event.plain_result("\n".join(lines))
@@ -936,6 +1001,37 @@ class BilibiliBanshiPlugin(Star):
         else:
             yield event.plain_result(f"定时点 {t} 不存在")
 
+    async def _cmd_review(self, event: AstrMessageEvent):
+        gid = self._get_event_group(event)
+        if not gid:
+            yield event.plain_result("❌ 请在群聊中使用此指令")
+            return
+
+        msg = event.message_str.strip()
+        rest = msg
+        for prefix in ["banshi review", "banshi"]:
+            if rest.startswith(prefix):
+                rest = rest[len(prefix):].strip()
+                break
+
+        gc = self._get_group_cfg(gid)
+        current_pct = int(gc.get("review_probability", 1.0) * 100)
+
+        if not rest:
+            yield event.plain_result(f"本群 LLM 锐评触发概率：{current_pct}%\n用法：/banshi review <0~100>")
+            return
+        try:
+            val = int(rest.split()[0])
+            if val < 0 or val > 100:
+                yield event.plain_result("请输入 0~100 之间的数字（0=关闭，100=每次触发）")
+                return
+            gc["review_probability"] = val / 100.0
+            await self._save_config()
+            label = "已关闭" if val == 0 else f"{val}%"
+            yield event.plain_result(f"✅ LLM 锐评触发概率设为：{label}")
+        except ValueError:
+            yield event.plain_result("请输入有效数字")
+
     async def _cmd_reset(self, event: AstrMessageEvent):
         gid = self._get_event_group(event)
         if not gid:
@@ -968,6 +1064,7 @@ class BilibiliBanshiPlugin(Star):
                 "scan_mode": gc.get("scan_mode", "interval"),
                 "scan_interval": gc.get("scan_interval", 300),
                 "push_times": gc.get("push_times", []),
+                "review_probability": gc.get("review_probability", 1.0),
             })
         return jsonify({"ok": True, "data": result})
 
@@ -995,6 +1092,8 @@ class BilibiliBanshiPlugin(Star):
             gc["scan_interval"] = int(body["scan_interval"])
         if "push_times" in body and isinstance(body["push_times"], list):
             gc["push_times"] = body["push_times"]
+        if "review_probability" in body:
+            gc["review_probability"] = float(body["review_probability"])
 
         await self._save_config()
 
