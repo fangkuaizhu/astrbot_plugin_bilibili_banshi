@@ -574,7 +574,7 @@ class BilibiliBanshiPlugin(Star):
                 "  /banshi kw        — 本群关键词列表\n"
                 "  /banshi kw add <词>  — 本群添加关键词\n"
                 "  /banshi kw del <词>  — 本群删除关键词\n"
-                "  /banshi maxdur <秒>  — 本群视频最大时长\n"
+
                 "  /banshi interval <秒>  — 本群间隔推送间隔\n"
                 "  /banshi mode interval  — 切换为间隔推送模式\n"
                 "  /banshi mode scheduled — 切换为定时推送模式\n"
